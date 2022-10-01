@@ -4,7 +4,6 @@ from scipy import signal
 import matplotlib.pyplot as plt
 from telegram_type_a import TelegramTypeA
 
-
 @attrs.define
 class WMBusPHYReceiver:
 
@@ -36,6 +35,7 @@ class WMBusPHYReceiver:
     current_frame: bytes = b''
     spilled_bits: np.ndarray = np.array([])
     spilled_nibbles: np.ndarray = np.array([])
+    plot_for_debugging: bool = False
     preamble_bits = [-1] + [-1, 1] * 19 + [-1] * 4 + [1] * 4 + [-1, 1] # 0 is encoded as -1 because of quadrature demodulator
 
     @classmethod
@@ -60,6 +60,22 @@ class WMBusPHYReceiver:
         corr = signal.correlate(din, self.oversampled_preamble)
         self.sampling_point = np.where(corr == np.max(corr))[0][0]
         self.sampling_point += (self.oversampling // 2)
+
+        if not self.plot_for_debugging:
+            return
+
+        figure, axis = plt.subplots(2, 1)
+        x = np.arange(corr.shape[0])
+        axis[0].plot(x, corr, label='corr')
+        axis[0].set_title("Correlation Metric")
+        sof = np.where(corr == np.max(corr))[0][0]
+        X = np.arange(din.size)
+        corr_stuffed = np.zeros(X.size)
+        corr_stuffed[sof - self.oversampled_preamble.shape[0]: sof] = self.oversampled_preamble
+        axis[1].set_title("RX signal and preamble")
+        axis[1].plot(X, corr_stuffed, color='b', label='samples_raw')
+        axis[1].plot(X, din, color='r', marker='.', label='samples_raw')
+        plt.show()
 
     @staticmethod
     def gen_preamble(oversampling):
