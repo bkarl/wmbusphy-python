@@ -26,15 +26,20 @@ def main():
     full_file = read_raw_file()
     digital_front_end = DFE()
     digital_front_end.design_low_pass()
-    full_file = add_cfo(full_file, cfo_hz=5e3)
+    #full_file = add_cfo(full_file, cfo_hz=5e3)
     full_file = digital_front_end.low_pass_filter_input(full_file)
     full_file = digital_front_end.quadrature_demodulator(full_file)
-    #plot_samples(full_file)
+    full_file *= 5 #manual agc
+    plot_samples(full_file)
 
     receiver = WMBusPHYReceiver.create()
     original_signal = full_file
     if original_signal.size % 2 != 0:
         original_signal = original_signal[:original_signal.size-1]
+    for i in range(10):
+        noise = np.random.normal(0, 1, full_file.size)
+        receiver.feed_data(noise) # feed noise to check on the frame detection
+
     for subarray in np.split(original_signal, 2):
         receiver.feed_data(subarray)
     dout = receiver.current_frame

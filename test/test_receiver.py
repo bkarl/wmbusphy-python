@@ -11,6 +11,8 @@ from wireless_mbus_phy_receiver import WMBusPHYReceiver
 class TestWMBusPHYReceiver(unittest.TestCase):
     def setUp(self):
         self.receiver = WMBusPHYReceiver.create()
+        self.receiver.plot_for_debugging = False
+        self.receiver.correlation_metric_treshold = 0
 
     @patch('wireless_mbus_phy_receiver.WMBusPHYReceiver.gen_preamble')
     def test_create_and_parameters_set(self, gen_preamble_mock):
@@ -105,3 +107,11 @@ class TestWMBusPHYReceiver(unittest.TestCase):
         spilled_data_out, truncated_data = self.receiver.save_spilled_data_for_next_decoding_step(data_in, 16)
         np.testing.assert_array_equal(truncated_data, np.arange(16))
         np.testing.assert_array_equal(spilled_data_out, np.array([16]))
+
+    def is_start_of_frame_known(self):
+        test_params = [(-1, False), (0, True) , (10, True)]
+        for tp in test_params:
+            with self.subTest(tp=tp):
+                sampling_point, expected_result = tp
+                self.receiver.sampling_point = sampling_point
+                assert self.receiver.is_start_of_frame_known() is expected_result

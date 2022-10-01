@@ -36,6 +36,7 @@ class WMBusPHYReceiver:
     spilled_bits: np.ndarray = np.array([])
     spilled_nibbles: np.ndarray = np.array([])
     plot_for_debugging: bool = False
+    correlation_metric_treshold: int = 700
     preamble_bits = [-1] + [-1, 1] * 19 + [-1] * 4 + [1] * 4 + [-1, 1] # 0 is encoded as -1 because of quadrature demodulator
 
     @classmethod
@@ -49,7 +50,12 @@ class WMBusPHYReceiver:
 
         if self.sampling_point < 0:
             self.find_start_of_frame(din)
-        self.recover_data(din)
+
+        if self.is_start_of_frame_known():
+            self.recover_data(din)
+
+    def is_start_of_frame_known(self):
+        return self.sampling_point >= 0
 
     def reset_receiver(self):
         self.sampling_point = -1
@@ -58,8 +64,10 @@ class WMBusPHYReceiver:
 
     def find_start_of_frame(self, din):
         corr = signal.correlate(din, self.oversampled_preamble)
-        self.sampling_point = np.where(corr == np.max(corr))[0][0]
-        self.sampling_point += (self.oversampling // 2)
+        correlation_result = np.max(corr)
+        if correlation_result > self.correlation_metric_treshold:
+            self.sampling_point = np.where(corr == np.max(corr))[0][0]
+            self.sampling_point += (self.oversampling // 2)
 
         if not self.plot_for_debugging:
             return
@@ -98,6 +106,7 @@ class WMBusPHYReceiver:
     def correct_frame_size(self, data):
         if len(data) >= self.frame_len_bytes:
             data = data[:self.frame_len_bytes]
+            print("Frame done.")
             self.frame_done = True
         return data
 
